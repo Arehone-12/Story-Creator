@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create your story</title>
+  <style>
+    body {
+      font-family: Calibri, sans-serif;
+      background: linear-gradient(135deg,#e9ffe9,#ffffff);
+      color:#0b274e;
+      margin:0;
+    }
+    header {
+      background:rgba(255,255,255,0.9);
+      padding:12px; text-align:center;
+      box-shadow:0 6px 16px rgba(0,0,0,.15);
+    }
+    h1 { margin:0; font-weight:normal; font-size:26px; color:#006400; }
+    .app {
+      max-width:900px; margin:20px auto; padding:20px;
+      background:rgba(255,255,255,0.9); border-radius:16px;
+      box-shadow:0 12px 28px rgba(0,0,0,.18);
+    }
+    input,button {
+      font-family: Calibri, sans-serif;
+      border:none; border-radius:10px; padding:10px;
+      margin:6px 0;
+    }
+    button {
+      background:#2e8b57; color:#fff; cursor:pointer;
+      transition:.25s;
+    }
+    button:hover { background:#006400; }
+    .toolbar {
+      margin-bottom:10px;
+    }
+    .toolbar button, .toolbar select {
+      margin:2px; padding:6px 10px; border:none; border-radius:6px;
+      background:#2e8b57; color:#fff; cursor:pointer;
+    }
+    .toolbar button:hover { background:#006400; }
+    .editor {
+      min-height:150px; border:1px solid #ccc; padding:10px;
+      border-radius:10px; background:#fff; margin-bottom:10px;
+    }
+    .library {
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+      gap:16px; margin-top:20px;
+    }
+    .card {
+      background:#fff; border-radius:12px; padding:12px;
+      box-shadow:0 6px 16px rgba(0,0,0,.15);
+      transition:.25s;
+    }
+    .card h3 { margin:0; font-weight:normal; color:#2e8b57; }
+    .card small { opacity:.7; }
+    .viewer {
+      padding:20px; max-width:700px; margin:auto; display:none;
+    }
+    .viewer h2 { color:#2e8b57; margin-top:0; }
+    .chapter { margin:10px 0; padding:10px; background:rgba(255,255,255,.85); border-radius:10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Story Writing App</h1>
+  </header>
+  <div class="app" id="mainApp">
+    <input id="title" type="text" placeholder="Story Title" style="width:100%;">
+
+    <!-- Formatting toolbar -->
+    <div class="toolbar">
+      <select onchange="formatDoc('fontName', this.value)">
+        <option value="Calibri">Calibri</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Arial">Arial</option>
+      </select>
+      <button onclick="formatDoc('bold')">B</button>
+      <button onclick="formatDoc('italic')">I</button>
+      <button onclick="formatDoc('underline')">U</button>
+      <button onclick="formatDoc('insertParagraph')">Paragraph</button>
+      <button onclick="formatDoc('formatBlock','h2')">Heading</button>
+    </div>
+
+    <!-- Rich text editor for chapters -->
+    <div id="editor" class="editor" contenteditable="true">
+      Start writing your chapter here...
+    </div>
+    <button onclick="addChapter()">Add Chapter</button>
+    <button onclick="saveStory()">Save Story</button>
+
+    <h2 style="font-weight:normal; color:#2e8b57;">Library</h2>
+    <div class="library" id="library"></div>
+  </div>
+
+  <!-- Story Viewer -->
+  <div class="viewer" id="viewer">
+    <h2 id="storyTitle"></h2>
+    <div id="chapters"></div>
+    <div class="actions">
+      <button onclick="backToLibrary()">Back</button>
+      <button onclick="deleteStory()">Delete Story</button>
+    </div>
+  </div>
+
+  <script>
+    let stories = JSON.parse(localStorage.getItem('stories')||'[]');
+    let tempChapters=[];
+    let currentIndex=null;
+
+    function formatDoc(cmd, value=null){
+      document.execCommand(cmd,false,value);
+    }
+
+    function addChapter(){
+      const content=document.getElementById('editor').innerHTML.trim();
+      if(!content){ alert("Write something for the chapter"); return; }
+      tempChapters.push(content);
+      document.getElementById('editor').innerHTML="";
+      alert("Chapter added. You can add more or save the story.");
+    }
+
+    function saveStory(){
+      const title=document.getElementById('title').value.trim();
+      if(!title||tempChapters.length===0){ alert("Enter title and at least one chapter"); return; }
+      stories.push({title,chapters:[...tempChapters],date:new Date().toLocaleString()});
+      localStorage.setItem('stories',JSON.stringify(stories));
+      document.getElementById('title').value="";
+      tempChapters=[];
+      renderLibrary();
+    }
+
+    function renderLibrary(){
+      const lib=document.getElementById('library');
+      lib.innerHTML="";
+      stories.forEach((s,i)=>{
+        const card=document.createElement('div');
+        card.className="card";
+        card.innerHTML=`<h3>${s.title}</h3><small>${s.date}</small><p>${s.chapters[0].substring(0,60)}...</p>`;
+        card.onclick=()=>openStory(i);
+        lib.appendChild(card);
+      });
+    }
+
+    function openStory(i){
+      document.getElementById('mainApp').style.display="none";
+      document.getElementById('viewer').style.display="block";
+      document.getElementById('storyTitle').textContent=stories[i].title;
+      const chWrap=document.getElementById('chapters');
+      chWrap.innerHTML="";
+      stories[i].chapters.forEach((ch,idx)=>{
+        const div=document.createElement('div');
+        div.className="chapter";
+        div.innerHTML="<h3>Chapter "+(idx+1)+"</h3>"+ch;
+        chWrap.appendChild(div);
+      });
+      currentIndex=i;
+    }
+
+    function backToLibrary(){
+      document.getElementById('viewer').style.display="none";
+      document.getElementById('mainApp').style.display="block";
+    }
+
+    function deleteStory(){
+      if(currentIndex!==null){
+        if(confirm("Delete this story?")){
+          stories.splice(currentIndex,1);
+          localStorage.setItem('stories',JSON.stringify(stories));
+          backToLibrary();
+          renderLibrary();
+        }
+      }
+    }
+
+    renderLibrary();
+  </script>
+</body>
+</html>
